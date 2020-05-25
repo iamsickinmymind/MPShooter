@@ -55,6 +55,7 @@ void AMPShooterCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AMPShooterCharacter::OnStartFire);
+	PlayerInputComponent->BindAction("Fire", IE_Released, this, &AMPShooterCharacter::OnStopFire);
 
 	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &AMPShooterCharacter::StartReload);
 	PlayerInputComponent->BindAction("SwitchWeapon", IE_Pressed, this, &AMPShooterCharacter::SwitchWeapon);
@@ -193,15 +194,42 @@ void AMPShooterCharacter::StartFire()
 	}
 }
 
-void AMPShooterCharacter::ServerStartFire_Implementation()
+void AMPShooterCharacter::OnStopFire()
 {
-	OnStartFire();
+	StopFire();
 }
 
-bool AMPShooterCharacter::ServerStartFire_Validate()
+void AMPShooterCharacter::StopFire()
 {
-	return true;
+	if (bWantsToFire)
+	{
+		bWantsToFire = false;
+		if (ActiveWeapon)
+		{
+			ActiveWeapon->StopFire();
+		}
+	}
 }
+// 
+// void AMPShooterCharacter::ServerStopFire_Implementation()
+// {
+// 	StopFire();
+// }
+// 
+// bool AMPShooterCharacter::ServerStopFire_Validate()
+// {
+// 	return true;
+// }
+// 
+// void AMPShooterCharacter::ServerStartFire_Implementation()
+// {
+// 	OnStartFire();
+// }
+// 
+// bool AMPShooterCharacter::ServerStartFire_Validate()
+// {
+// 	return true;
+// }
 
 void AMPShooterCharacter::StartReload()
 {

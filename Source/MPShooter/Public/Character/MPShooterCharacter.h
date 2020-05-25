@@ -56,8 +56,13 @@ protected:
 
 	void OnStartFire();
 	void StartFire();
-	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerStartFire();
+// 	UFUNCTION(Server, Reliable, WithValidation)
+// 	void ServerStartFire();
+
+	void OnStopFire();
+	void StopFire();
+// 	UFUNCTION(Server, Reliable, WithValidation)
+// 	void ServerStopFire();
 
 	void StartReload();
 

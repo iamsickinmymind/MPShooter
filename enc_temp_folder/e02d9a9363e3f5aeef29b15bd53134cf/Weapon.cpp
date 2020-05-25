@@ -110,6 +110,15 @@ void AWeapon::StartFire()
 		bWantsToFire = true;
 		DetermineWeaponState();
 	}
+
+	if (HasAuthority())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Star fire called"))
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Star fire called"))
+	}
 }
 
 void AWeapon::StopFire()
@@ -123,6 +132,15 @@ void AWeapon::StopFire()
 	{
 		bWantsToFire = false;
 		DetermineWeaponState();
+	}
+
+	if (HasAuthority())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Stop fire called"))
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Stop fire called"))
 	}
 }
 
@@ -407,7 +425,7 @@ bool AWeapon::CanReload() const
 
 void AWeapon::SetWeaponOwner(ACharacter* NewOwner)
 {
-	if (NewOwner != WeaponOwner)
+	if (NewOwner && NewOwner != WeaponOwner)
 	{
 		WeaponOwner = NewOwner;
 		SetOwner(WeaponOwner);

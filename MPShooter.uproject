@@ -1,0 +1,16 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "{D30607F8-43A0-130D-8C12-EF87C74CA9CF}",
+	"Category": "",
+	"Description": "",
+	"Modules": [
+		{
+			"Name": "MPShooter",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine"
+			]
+		}
+	]
+}

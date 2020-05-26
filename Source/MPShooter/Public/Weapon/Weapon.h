@@ -64,6 +64,7 @@ struct FWeaponConfig
 		DamageMultiplier.Add(FName("head"), 2.f);
 		DefaultAimFOV = 60.f;
 		RPM = 800.f;
+		NoiseVolumeRange = 1.f;
 	}
 
 public:
@@ -82,6 +83,11 @@ public:
 	How many shots can this weapon fire per minute.*/
 	UPROPERTY(EditDefaultsOnly)
 	float RPM;
+
+	/**Values from 0.1 to 1.
+	Lower values can be achieved with supressores.*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMax = 1, UIMax = 1, ClampMin = 0.1, UIMin = 0.1))
+	float NoiseVolumeRange;
 
 	/**Determines default FOV when aiming.
 	Is overwritten by Scope attachment FOV.*/
@@ -114,6 +120,7 @@ struct FWeaponAmmo
 	{
 		MaxAmmo = 90;
 		MaxAmmoPerClip = 30;
+		AmmoPerShot = 1;
 	}
 
 public:
@@ -129,6 +136,10 @@ public:
 	/**How much ammo can be loaded in a single clip.*/
 	UPROPERTY(EditDefaultsOnly)
 	int32 MaxAmmoPerClip;
+
+	/**How much ammo is consumed per shot*/
+	UPROPERTY(EditDefaultsOnly, meta = (UIMin = 1, ClampMin = 1))
+	int32 AmmoPerShot;
 };
 
 USTRUCT(BlueprintType)
@@ -332,6 +343,8 @@ protected:
 
 	UFUNCTION()
 	void OnRep_WeaponOwner();
+	UFUNCTION()
+	void OnRep_BurstCounter();
 
 	UFUNCTION()
 	float PlayWeaponAnimation(UAnimMontage* Animation, float InPlayRate = 1.f, FName StartSectionName = NAME_Name);
@@ -346,14 +359,24 @@ protected:
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerStopFire();
 
-	void ConsumeAmmo(const int32 AmmoToConsume = 1);
+	int ConsumeAmmo();
+
+	void OnBurstStarted();
+	void OnBurstFinished();
+
+	void HandleFiring();
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerHandleFiring();
 	
 	UFUNCTION()
 	void OnRep_Reload();
 	void StartReload(bool bFromReplication = false);
+	void StopReload();
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerStartReload();
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerStopReload();
 	void StopSimulateReload();
 	void ReloadWeapon();
 
@@ -421,17 +444,24 @@ protected:
 	bool bIsEquipped;
 	bool bPendingEquip;
 	bool bWantsToFire;
+	bool bRefiring;
 
-	/** last time when this weapon was switched to */
+	/**last time when this weapon was switched to */
 	float EquipStartedTime;
-	/** how much time weapon needs to be equipped */
+	/**how much time weapon needs to be equipped */
 	float EquipDuration;
+	/**last time weapon fired*/
+	float LastFireTime;
 
 	FTimerHandle TimerHandle_EquipFinishedWeapon;
 	FTimerHandle TimerHandle_ReloadWeapon;
 	FTimerHandle TimerHandle_StopReload;
 	FTimerHandle TimerHandler_FireWeapon;
+	FTimerHandle TimerHandle_HandleFiring;
 
 	float TimeBetweenShots;
+
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_BurstCounter)
+	int32 BurstCounter;
 #pragma endregion protected_variables
 };

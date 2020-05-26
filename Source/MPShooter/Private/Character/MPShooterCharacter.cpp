@@ -210,26 +210,6 @@ void AMPShooterCharacter::StopFire()
 		}
 	}
 }
-// 
-// void AMPShooterCharacter::ServerStopFire_Implementation()
-// {
-// 	StopFire();
-// }
-// 
-// bool AMPShooterCharacter::ServerStopFire_Validate()
-// {
-// 	return true;
-// }
-// 
-// void AMPShooterCharacter::ServerStartFire_Implementation()
-// {
-// 	OnStartFire();
-// }
-// 
-// bool AMPShooterCharacter::ServerStartFire_Validate()
-// {
-// 	return true;
-// }
 
 void AMPShooterCharacter::StartReload()
 {

@@ -9,7 +9,6 @@
 #include "MPSPlayerController.h"
 #include "MPShooterCharacter.h"
 
-// Sets default values
 AWeapon::AWeapon()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -57,13 +56,18 @@ void AWeapon::PostInitializeComponents()
 
 	AmmoInClip = WeaponAmmoSettings.MaxAmmoPerClip;
 	AmmoInInventory = WeaponAmmoSettings.MaxAmmo;
-	TimeBetweenShots = WeaponConfig.RPM / 60;
+	TimeBetweenShots = 60 / WeaponConfig.RPM;
 }
 
 void AWeapon::OnRep_WeaponOwner()
 {
 	/// TODO
 	//  If WeaponOwner == nullptr ActivateInteraction
+}
+
+void AWeapon::OnRep_BurstCounter()
+{
+
 }
 
 float AWeapon::PlayWeaponAnimation(UAnimMontage* Animation, float InPlayRate /*= 1.f*/, FName StartSectionName /*= NAME_Name*/)
@@ -110,15 +114,6 @@ void AWeapon::StartFire()
 		bWantsToFire = true;
 		DetermineWeaponState();
 	}
-
-	if (HasAuthority())
-	{
-		UE_LOG(LogTemp, Error, TEXT("Star fire called"))
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Star fire called"))
-	}
 }
 
 void AWeapon::StopFire()
@@ -132,15 +127,6 @@ void AWeapon::StopFire()
 	{
 		bWantsToFire = false;
 		DetermineWeaponState();
-	}
-
-	if (HasAuthority())
-	{
-		UE_LOG(LogTemp, Error, TEXT("Stop fire called"))
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Stop fire called"))
 	}
 }
 
@@ -161,15 +147,9 @@ void AWeapon::DetermineWeaponState()
 				NewState = CurrentWeaponState;
 			}
 		}
-		else if (!bPendingReload)
+		else if (!bPendingReload && bWantsToFire && CanFire())
 		{
-			if (bWantsToFire)
-			{
-				if (CanFire())
-				{
-					NewState = EWeaponState::EWS_Firing;
-				}
-			}
+			NewState = EWeaponState::EWS_Firing;
 		}
 	}
 	else if (bPendingEquip)
@@ -186,14 +166,14 @@ void AWeapon::SetWeaponState(EWeaponState NewWeapoState)
 
 	if (PreviousState == EWeaponState::EWS_Firing && NewWeapoState != EWeaponState::EWS_Firing)
 	{
-		// Stop bursting
+		OnBurstFinished();
 	}
 
 	CurrentWeaponState = NewWeapoState;
 
 	if (PreviousState != EWeaponState::EWS_Firing && NewWeapoState == EWeaponState::EWS_Firing)
 	{
-		// start blasting
+		OnBurstStarted();
 	}
 }
 
@@ -297,14 +277,139 @@ bool AWeapon::ServerOnUnEquip_Validate()
 	return true;
 }
 
-void AWeapon::ConsumeAmmo(const int32 AmmoToConsume /*= 1*/)
+int AWeapon::ConsumeAmmo()
 {
-	const int32 AmmoDelta = FMath::Min(AmmoInClip - AmmoToConsume, 0);
+// 	const int32 AmmoDelta = FMath::Max(AmmoInClip - 1, 0);
+// 
+// 	if (AmmoDelta > 0)
+// 	{
+// 		AmmoInClip -= WeaponAmmoSettings.AmmoPerShot;
+// 	}
 
-	if (AmmoDelta > 0)
+	AmmoInClip -= WeaponAmmoSettings.AmmoPerShot;
+	const int32 AmmoDelta = FMath::Clamp(AmmoInClip, 0, WeaponAmmoSettings.MaxAmmoPerClip);
+	AmmoInClip = AmmoDelta;
+
+	return AmmoInClip;
+}
+
+void AWeapon::OnBurstStarted()
+{
+	// Start firing
+	// Firing might be delayed to satisfy TimeBetweenShots
+	const float GameTime = GetWorld()->GetTimeSeconds();
+	if (LastFireTime > 0 && TimeBetweenShots > 0.0f &&	LastFireTime + TimeBetweenShots > GameTime)
 	{
-		AmmoInClip -= AmmoToConsume;
+		GetWorldTimerManager().SetTimer(TimerHandle_HandleFiring, this, &AWeapon::HandleFiring, LastFireTime + TimeBetweenShots - GameTime, false);
 	}
+	else
+	{
+		HandleFiring();
+	}
+}
+
+void AWeapon::OnBurstFinished()
+{
+	BurstCounter = 0;
+
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		//StopSimulatingWeaponFire();
+	}
+
+	GetWorldTimerManager().ClearTimer(TimerHandle_HandleFiring);
+	bRefiring = false;
+}
+
+void AWeapon::HandleFiring()
+{
+	if (CanFire())
+	{
+		if (GetNetMode() != NM_DedicatedServer)
+		{
+			//SimulateWeaponFire();
+		}
+
+		if (WeaponOwner && WeaponOwner->IsLocallyControlled())
+		{
+			//FireWeapon();
+
+			AmmoInClip = ConsumeAmmo();
+
+			// Update firing FX on remote clients if this is called on server
+			BurstCounter++;
+		}
+	}
+	else if (CanReload())
+	{
+		StartReload();
+	}
+	else if (WeaponOwner && WeaponOwner->IsLocallyControlled())
+	{
+		if (GetCurrentAmmoInClip() == 0 && !bRefiring)
+		{
+			//PlayWeaponSound(OutOfAmmoSound);
+		}
+
+		/* Reload after firing last round */
+		if (GetCurrentAmmoInClip() <= 0 && CanReload())
+		{
+			StartReload();
+		}
+
+		/* Stop weapon fire FX, but stay in firing state */
+		if (BurstCounter > 0)
+		{
+			OnBurstFinished();
+		}
+	}
+
+	if (WeaponOwner && WeaponOwner->IsLocallyControlled())
+	{
+		if (!HasAuthority())
+		{
+			ServerHandleFiring();
+		}
+
+		/* Retrigger HandleFiring on a delay for automatic weapons */
+		bRefiring = (CurrentWeaponState == EWeaponState::EWS_Firing && TimeBetweenShots > 0.0f);
+		if (bRefiring)
+		{
+			GetWorldTimerManager().SetTimer(TimerHandle_HandleFiring, this, &AWeapon::HandleFiring, TimeBetweenShots, false);
+		}
+	}
+
+	/* Make Noise on every shot. The data is managed by the PawnNoiseEmitterComponent created in SBaseCharacter and used by PawnSensingComponent in SZombieCharacter */
+	if (WeaponOwner)
+	{
+		WeaponOwner->MakeNoise(WeaponConfig.NoiseVolumeRange);
+	}
+
+	LastFireTime = GetWorld()->GetTimeSeconds();
+
+	RefreshOwnerUI();
+}
+
+void AWeapon::ServerHandleFiring_Implementation()
+{
+	const bool bShouldUpdateAmmo = CanFire();
+
+	HandleFiring();
+
+	if (bShouldUpdateAmmo)
+	{
+		const int32 AmmoDelta = FMath::Max(AmmoInClip - 1, 0);
+
+		AmmoInClip = ConsumeAmmo();
+
+		// Update firing FX on remote clients
+		BurstCounter++;
+	}
+}
+
+bool AWeapon::ServerHandleFiring_Validate()
+{
+	return true;
 }
 
 void AWeapon::StartReload(bool bFromReplication /*= false*/)
@@ -319,32 +424,35 @@ void AWeapon::StartReload(bool bFromReplication /*= false*/)
 		bPendingReload = true;
 		DetermineWeaponState();
 
-		if (WeaponAnim.bPlayReloadAnim)
+		UAnimMontage* AnimToPlay = WeaponOwner->IsLocallyControlled() ? WeaponAnim.ReloadAnim1P : WeaponAnim.ReloadAnim3P;
+		float AnimDuration = 0.0f;
+		if (AnimToPlay)
 		{
-			UAnimMontage* AnimToPlay = WeaponOwner->IsLocallyControlled() ? WeaponAnim.ReloadAnim1P : WeaponAnim.ReloadAnim3P;
-			if (AnimToPlay)
-			{
-				float AnimDuration = PlayWeaponAnimation(AnimToPlay);
-
-				if (AnimDuration <= 0.f)
-				{
-					AnimDuration = WeaponAnim.NoAnimReloadDuration;
-				}
-
-				GetWorldTimerManager().SetTimer(TimerHandle_StopReload, this, &AWeapon::StopSimulateReload, AnimDuration, false);
-				if (HasAuthority())
-				{
-					GetWorldTimerManager().SetTimer(TimerHandle_ReloadWeapon, this, &AWeapon::ReloadWeapon, FMath::Max(0.1f, AnimDuration - 0.1f), false);
-				}
-			}
-			else
-			{
-				ReloadWeapon();
-			}
+			AnimDuration = PlayWeaponAnimation(AnimToPlay);
 		}
-		else
+
+		if (AnimDuration <= 0.f || !WeaponAnim.bPlayReloadAnim)
 		{
-			ReloadWeapon();
+			AnimDuration = WeaponAnim.NoAnimReloadDuration;
+		}
+
+		GetWorldTimerManager().SetTimer(TimerHandle_StopReload, this, &AWeapon::StopReload, AnimDuration, false);
+		if (HasAuthority())
+		{
+			GetWorldTimerManager().SetTimer(TimerHandle_ReloadWeapon, this, &AWeapon::ReloadWeapon, FMath::Max(0.1f, AnimDuration - 0.1f), false);
+		}
+	}
+}
+
+void AWeapon::StopReload()
+{
+	if (CurrentWeaponState == EWeaponState::EWS_Reloading)
+	{
+		bPendingReload = false;
+		DetermineWeaponState();
+		if (WeaponOwner)
+		{
+			StopWeaponAnim(WeaponOwner->IsLocallyControlled() ? WeaponAnim.ReloadAnim1P : WeaponAnim.ReloadAnim3P);
 		}
 	}
 }
@@ -353,12 +461,11 @@ void AWeapon::OnRep_Reload()
 {
 	if (bPendingReload)
 	{
-		/* By passing true we do not push back to server and execute it locally */
-		StartReload(true);
+		StartReload();
 	}
 	else
 	{
-		StopSimulateReload();
+		StopReload();
 	}
 }
 
@@ -368,6 +475,16 @@ void AWeapon::ServerStartReload_Implementation()
 }
 
 bool AWeapon::ServerStartReload_Validate()
+{
+	return true;
+}
+
+void AWeapon::ServerStopReload_Implementation()
+{
+	StopReload();
+}
+
+bool AWeapon::ServerStopReload_Validate()
 {
 	return true;
 }
@@ -420,12 +537,12 @@ bool AWeapon::ServerStartFire_Validate()
 
 bool AWeapon::CanReload() const
 {
-	return ((AmmoInClip >= WeaponAmmoSettings.MaxAmmoPerClip) || (GetAmmoInInventory() > 0)) && (WeaponOwner != nullptr);
+	return ((AmmoInClip <= WeaponAmmoSettings.MaxAmmoPerClip) && (GetAmmoInInventory() > 0)) && (WeaponOwner != nullptr);
 }
 
 void AWeapon::SetWeaponOwner(ACharacter* NewOwner)
 {
-	if (NewOwner && NewOwner != WeaponOwner)
+	if (NewOwner != WeaponOwner)
 	{
 		WeaponOwner = NewOwner;
 		SetOwner(WeaponOwner);
@@ -442,4 +559,6 @@ void AWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeP
 
 	DOREPLIFETIME_CONDITION(AWeapon, AmmoInClip, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(AWeapon, AmmoInInventory, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(AWeapon, bPendingReload, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(AWeapon, BurstCounter, COND_SkipOwner);
 }

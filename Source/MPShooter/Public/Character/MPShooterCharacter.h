@@ -9,6 +9,7 @@
 #include "MPShooterCharacter.generated.h"
 
 class AWeapon;
+class AFireWeapon;
 
 UCLASS(config=Game)
 class AMPShooterCharacter : public ACharacter
@@ -78,10 +79,10 @@ protected:
 	class UCameraComponent* FollowCamera;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
-	TSubclassOf<AWeapon>DefaultPrimaryWeapon;
+	TSubclassOf<AFireWeapon>DefaultPrimaryWeapon;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
-	TSubclassOf<AWeapon>DefaultSecondaryWeapon;
+	TSubclassOf<AFireWeapon>DefaultSecondaryWeapon;
 
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_Weapon, VisibleAnywhere, BlueprintReadOnly, Category = "Weapons")
 	AWeapon* ActiveWeapon = nullptr;

@@ -11,6 +11,7 @@
 #include "Weapon/Weapon.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
+#include "FireWeapon.h"
 
 AMPShooterCharacter::AMPShooterCharacter()
 {
@@ -74,7 +75,7 @@ void AMPShooterCharacter::BeginPlay()
 			FActorSpawnParameters SpawnParams;
 				SpawnParams.Owner = SpawnParams.Instigator = this;
 				SpawnParams.bNoFail = true;
-			ActiveWeapon = GetWorld()->SpawnActor<AWeapon>(DefaultPrimaryWeapon, SpawnLocation, SpawnRotation, SpawnParams);
+			ActiveWeapon = GetWorld()->SpawnActor<AFireWeapon>(DefaultPrimaryWeapon, SpawnLocation, SpawnRotation, SpawnParams);
 
 			if (ActiveWeapon)
 			{

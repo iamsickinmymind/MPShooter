@@ -57,6 +57,18 @@ void AWeapon::PostInitializeComponents()
 	AmmoInClip = WeaponAmmoSettings.MaxAmmoPerClip;
 	AmmoInInventory = WeaponAmmoSettings.MaxAmmo;
 	TimeBetweenShots = 60 / WeaponConfig.RPM;
+
+	switch (WeaponConfig.WeaponFireMode)
+	{
+	case EWeaponFireMode::EWM_SemiAuto:
+		TimeBetweenShots = 0;
+		break;
+	case EWeaponFireMode::EWM_Burst:
+		TimeBetweenShots = 0;
+		break;
+	default:
+		break;
+	}
 }
 
 void AWeapon::OnRep_WeaponOwner()

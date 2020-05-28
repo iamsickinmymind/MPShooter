@@ -15,7 +15,6 @@ AWeapon::AWeapon()
 	PrimaryActorTick.TickGroup = TG_PrePhysics;
 
 	SetReplicates(true);
-	SetReplicateMovement(true);
 	bNetUseOwnerRelevancy = true;
 
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(FName("WeaponMesh"));
@@ -36,6 +35,26 @@ AWeapon::AWeapon()
 	bPendingEquip = false;
 	bPendingReload = false;
 	bWantsToFire = false;
+}
+
+FName AWeapon::GetCameraAimSocket() const
+{
+	return WeaponSocketing.DefaultAimCameraSocket;
+}
+
+FTransform AWeapon::GetCameraAimSocketTransform() const
+{
+	if (WeaponMesh)
+	{
+		if (WeaponMesh)
+		{
+			if (WeaponMesh->DoesSocketExist(WeaponSocketing.DefaultAimCameraSocket))
+			{
+				return WeaponMesh->GetSocketTransform(WeaponSocketing.DefaultAimCameraSocket);
+			}
+		}
+	}
+	return FTransform();
 }
 
 void AWeapon::BeginPlay()
@@ -261,6 +280,8 @@ void AWeapon::OnEquipFinished()
 	DetermineWeaponState();
 
 	RefreshOwnerUI();
+
+	OnAttached();
 }
 
 void AWeapon::RefreshOwnerUI()

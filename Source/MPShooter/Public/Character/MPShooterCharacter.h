@@ -34,17 +34,27 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Player")
 	bool IsSprinting() const;
 
+	UFUNCTION(BlueprintPure, Category = "Player")
+	bool IsAiming();
+
+	UFUNCTION(BlueprintPure, Category = "Player")
+	bool CanAim();
 #pragma endregion public
 
 protected:
 #pragma region protected
 
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	void MoveForward(float Value);
 	void MoveRight(float Value);
-	void SetSprinting(bool NewIsSprinting);
+	void StartSprint();
+	void StopSprint();
+	void SetSprinting(bool NewSprinting);
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerSetSprinting(bool NewSprinting);
 
 	UFUNCTION()
 	void OnRep_Weapon();
@@ -57,15 +67,21 @@ protected:
 
 	void OnStartFire();
 	void StartFire();
-// 	UFUNCTION(Server, Reliable, WithValidation)
-// 	void ServerStartFire();
 
 	void OnStopFire();
 	void StopFire();
-// 	UFUNCTION(Server, Reliable, WithValidation)
-// 	void ServerStopFire();
 
 	void StartReload();
+
+	void StartAiming();
+	void StopAiming();
+	void SetAiming(const bool NewAiming);
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerStartAiming();
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerStopAiming();
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerSetAiming(const bool NewAiming);
 
 #pragma endregion protected
 
@@ -77,6 +93,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
+
+	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	USkeletalMeshComponent* FPPMesh = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 	TSubclassOf<AFireWeapon>DefaultPrimaryWeapon;
@@ -102,6 +121,13 @@ private:
 #pragma region private
 
 	bool bWantsToFire;
+	UPROPERTY(Transient, Replicated)
+	bool bIsAiming;
+	UPROPERTY(Transient, Replicated)
+	bool bIsSprinting;
+
+	float DefaultFOV;
+	FVector DefaultCameraLocation;
 #pragma endregion private
 };
 

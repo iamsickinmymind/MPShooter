@@ -65,6 +65,7 @@ struct FWeaponConfig
 		DefaultAimFOV = 60.f;
 		RPM = 800.f;
 		NoiseVolumeRange = 1.f;
+		CameraAimTransitionSpeed = 1.f;
 	}
 
 public:
@@ -93,6 +94,10 @@ public:
 	Is overwritten by Scope attachment FOV.*/
 	UPROPERTY(EditDefaultsOnly)
 	float DefaultAimFOV;
+
+	/**Set how fast can camera aiming to aim position.*/
+	UPROPERTY(EditDefaultsOnly)
+	float CameraAimTransitionSpeed;
 
 	/**Determines the fire mode of the weapon.*/
 	UPROPERTY(EditDefaultsOnly)
@@ -290,6 +295,9 @@ public:
 
 	AWeapon();
 
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnAttached();
+
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	bool CanReload() const;
 
@@ -298,6 +306,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Wweapon")
 	void SetWeaponOwner(ACharacter* NewOwner);
+
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	FORCEINLINE	USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; };
 
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	FORCEINLINE	ACharacter* GetWeaponOwner() const { return WeaponOwner; };
@@ -331,6 +342,18 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	FORCEINLINE EWeaponFireMode GetWeaponFiremMode() const { return WeaponConfig.WeaponFireMode; };
+
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	FORCEINLINE float GetCemraAimTransitionSpeed() const { return WeaponConfig.CameraAimTransitionSpeed; };
+
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	FName GetCameraAimSocket() const;
+
+	/**Returns transform of the camera socket.
+	The same result might be achieved by location only.*/
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	FTransform GetCameraAimSocketTransform() const;
+
 
 #pragma endregion public
 

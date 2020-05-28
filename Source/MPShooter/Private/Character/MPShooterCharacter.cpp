@@ -4,24 +4,42 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 
 #include "Weapon/Weapon.h"
+#include "Weapon/FireWeapon.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
-#include "FireWeapon.h"
 
 AMPShooterCharacter::AMPShooterCharacter()
 {
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
+	FPPMesh = CreateDefaultSubobject<USkeletalMeshComponent>(FName("FPPMesh"));
+	FPPMesh->SetupAttachment(GetRootComponent());
+	FPPMesh->AlwaysLoadOnClient = true;
+	FPPMesh->AlwaysLoadOnServer = true;
+	FPPMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPose;
+	FPPMesh->bCastDynamicShadow = true;
+	FPPMesh->bAffectDynamicIndirectLighting = true;
+	FPPMesh->PrimaryComponentTick.TickGroup = TG_PrePhysics;
+	static FName MeshCollisionProfileName(TEXT("CharacterMesh"));
+	FPPMesh->SetCollisionProfileName(MeshCollisionProfileName);
+	FPPMesh->SetCollisionProfileName(MeshCollisionProfileName);
+	FPPMesh->SetGenerateOverlapEvents(false);
+	FPPMesh->SetCanEverAffectNavigation(false);
+	FPPMesh->bOnlyOwnerSee = true;
+
+	GetMesh()->bOwnerNoSee = true;
+
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
 
 	bUseControllerRotationPitch = false;
-	bUseControllerRotationYaw = false;
+	bUseControllerRotationYaw = true;
 	bUseControllerRotationRoll = false;
 
 	GetCharacterMovement()->bOrientRotationToMovement = true;
@@ -35,12 +53,16 @@ AMPShooterCharacter::AMPShooterCharacter()
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 300.0f;
+	CameraBoom->TargetArmLength = 0.0f;
+	CameraBoom->SetRelativeLocation(FVector(0.f, 0.f, 80.f));
 	CameraBoom->bUsePawnControlRotation = true;
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); 
 	FollowCamera->bUsePawnControlRotation = false;
+
+	DefaultCameraLocation = FollowCamera ? FollowCamera->GetComponentLocation() : FVector(0);
+	DefaultFOV = FollowCamera ? FollowCamera->FieldOfView : 90.0f;
 }
 
 void AMPShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -51,6 +73,9 @@ void AMPShooterCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &AMPShooterCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AMPShooterCharacter::MoveRight);
+	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMPShooterCharacter::StartSprint);
+	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMPShooterCharacter::StopSprint);
+
 
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
@@ -60,6 +85,9 @@ void AMPShooterCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 
 	PlayerInputComponent->BindAction("Reload", IE_Pressed, this, &AMPShooterCharacter::StartReload);
 	PlayerInputComponent->BindAction("SwitchWeapon", IE_Pressed, this, &AMPShooterCharacter::SwitchWeapon);
+
+	PlayerInputComponent->BindAction("Aim", IE_Pressed, this, &AMPShooterCharacter::StartAiming);
+	PlayerInputComponent->BindAction("AIm", IE_Released, this, &AMPShooterCharacter::StopAiming);
 }
 
 void AMPShooterCharacter::BeginPlay()
@@ -75,6 +103,7 @@ void AMPShooterCharacter::BeginPlay()
 			FActorSpawnParameters SpawnParams;
 				SpawnParams.Owner = SpawnParams.Instigator = this;
 				SpawnParams.bNoFail = true;
+
 			ActiveWeapon = GetWorld()->SpawnActor<AFireWeapon>(DefaultPrimaryWeapon, SpawnLocation, SpawnRotation, SpawnParams);
 
 			if (ActiveWeapon)
@@ -84,6 +113,65 @@ void AMPShooterCharacter::BeginPlay()
 		}
 
 		OnRep_Weapon();
+	}
+}
+
+void AMPShooterCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	/// DODO:
+	// - create bool ShouldUpdateCamera() const
+	// - determine if camera should be moved
+	// - execute camera mvoement only if camera should be moved
+	if (HasAuthority()) 
+	{
+		float DesiredFOV;
+		if (ActiveWeapon)
+		{
+			DesiredFOV = IsAiming() ? ActiveWeapon->WeaponConfig.DefaultAimFOV : DefaultFOV;
+		}
+		else
+		{
+			DesiredFOV = DefaultFOV;
+		}
+
+		FollowCamera->SetFieldOfView(FMath::FInterpTo(FollowCamera->FieldOfView, DesiredFOV, DeltaTime, 10.f));
+
+		if (ActiveWeapon != nullptr) {
+
+			const FVector ADSLocation = ActiveWeapon->GetCameraAimSocketTransform().GetLocation();
+			DefaultCameraLocation = CameraBoom->GetSocketLocation(USpringArmComponent::SocketName);
+
+			FVector CameraLocation = bIsAiming ? ADSLocation : DefaultCameraLocation;
+
+			const float InterpSpeed = FVector::Dist(ADSLocation, DefaultCameraLocation) / ActiveWeapon->GetCemraAimTransitionSpeed();
+			FollowCamera->SetWorldLocation(FMath::VInterpTo(FollowCamera->GetComponentLocation(), CameraLocation, DeltaTime, InterpSpeed));
+		}
+	}
+	if (!HasAuthority())
+	{
+		float DesiredFOV;
+		if (ActiveWeapon)
+		{
+			DesiredFOV = IsAiming() ? ActiveWeapon->WeaponConfig.DefaultAimFOV : DefaultFOV;
+		}
+		else
+		{
+			DesiredFOV = DefaultFOV;
+		}
+
+		FollowCamera->SetFieldOfView(FMath::FInterpTo(FollowCamera->FieldOfView, DesiredFOV, DeltaTime, 10.f));
+
+		if (ActiveWeapon != nullptr) {
+
+			const FVector ADSLocation = ActiveWeapon->GetCameraAimSocketTransform().GetLocation();
+			DefaultCameraLocation = CameraBoom->GetSocketLocation(USpringArmComponent::SocketName);
+
+			FVector CameraLocation = bIsAiming ? ADSLocation : DefaultCameraLocation;
+
+			const float InterpSpeed = FVector::Dist(ADSLocation, DefaultCameraLocation) / ActiveWeapon->GetCemraAimTransitionSpeed();
+			FollowCamera->SetWorldLocation(FMath::VInterpTo(FollowCamera->GetComponentLocation(), CameraLocation, DeltaTime, InterpSpeed));
+		}
 	}
 }
 
@@ -111,9 +199,39 @@ void AMPShooterCharacter::MoveRight(float Value)
 	}
 }
 
-void AMPShooterCharacter::SetSprinting(bool NewIsSprinting)
+void AMPShooterCharacter::StartSprint()
 {
+	SetSprinting(true);
+}
 
+void AMPShooterCharacter::StopSprint()
+{
+	SetSprinting(false);
+}
+
+void AMPShooterCharacter::SetSprinting(bool NewSprinting)
+{
+	if (bIsCrouched)
+	{
+		UnCrouch();
+	}
+	if (!HasAuthority())
+	{
+		if (bIsSprinting != NewSprinting)
+		{
+			bIsSprinting = NewSprinting;
+		}
+	}
+}
+
+void AMPShooterCharacter::ServerSetSprinting_Implementation(bool NewSprinting)
+{
+	SetSprinting(NewSprinting);
+}
+
+bool AMPShooterCharacter::ServerSetSprinting_Validate(bool NewSprinting)
+{
+	return true;
 }
 
 bool AMPShooterCharacter::IsAlive() const
@@ -123,7 +241,17 @@ bool AMPShooterCharacter::IsAlive() const
 
 bool AMPShooterCharacter::IsSprinting() const
 {
-	return true;
+	return bIsSprinting;
+}
+
+bool AMPShooterCharacter::IsAiming()
+{
+	return bIsAiming;
+}
+
+bool AMPShooterCharacter::CanAim()
+{
+	return ActiveWeapon != nullptr && !IsSprinting();
 }
 
 void AMPShooterCharacter::OnRep_Weapon()
@@ -223,6 +351,71 @@ void AMPShooterCharacter::StartReload()
 	}
 }
 
+void AMPShooterCharacter::StartAiming()
+{
+	SetAiming(true);
+	bUseControllerRotationYaw = true;
+	if (!HasAuthority())
+	{
+		ServerStartAiming();
+	}
+}
+
+void AMPShooterCharacter::StopAiming()
+{
+	SetAiming(false);
+	bUseControllerRotationYaw = false;
+	if (!HasAuthority())
+	{
+		ServerStopAiming();
+	}
+}
+
+void AMPShooterCharacter::SetAiming(const bool NewAiming)
+{
+	// Local aiming
+	if (CanAim())
+	{
+		bIsAiming = NewAiming;
+	}
+
+	// Aim at server but do not COND_SkipOwner
+	if (!HasAuthority())
+	{
+		ServerSetAiming(NewAiming);
+	}
+}
+
+void AMPShooterCharacter::ServerSetAiming_Implementation(const bool NewAiming)
+{
+	SetAiming(NewAiming);
+}
+
+bool AMPShooterCharacter::ServerSetAiming_Validate(const bool NewAiming)
+{
+	return true;
+}
+
+void AMPShooterCharacter::ServerStopAiming_Implementation()
+{
+	SetAiming(false);
+}
+
+bool AMPShooterCharacter::ServerStopAiming_Validate()
+{
+	return true;
+}
+
+void AMPShooterCharacter::ServerStartAiming_Implementation()
+{
+	SetAiming(true);
+}
+
+bool AMPShooterCharacter::ServerStartAiming_Validate()
+{
+	return true;
+}
+
 void AMPShooterCharacter::EquipWeapon(AWeapon* NewWeapon, EWeaponType Category /*= EWeaponCategory::EWC_Primary */)
 {
 	if (!HasAuthority())
@@ -251,5 +444,7 @@ void AMPShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AMPShooterCharacter, ActiveWeapon);
-	//DOREPLIFETIME(AMPShooterCharacter, PreviousWeapon);
+
+	DOREPLIFETIME_CONDITION(AMPShooterCharacter, bIsAiming, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(AMPShooterCharacter, bIsSprinting, COND_SkipOwner);
 }

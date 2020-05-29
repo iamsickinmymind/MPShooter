@@ -18,22 +18,22 @@ AMPShooterCharacter::AMPShooterCharacter()
 {
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
-	FPPMesh = CreateDefaultSubobject<USkeletalMeshComponent>(FName("FPPMesh"));
-	FPPMesh->SetupAttachment(GetRootComponent());
-	FPPMesh->AlwaysLoadOnClient = true;
-	FPPMesh->AlwaysLoadOnServer = true;
-	FPPMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPose;
-	FPPMesh->bCastDynamicShadow = true;
-	FPPMesh->bAffectDynamicIndirectLighting = true;
-	FPPMesh->PrimaryComponentTick.TickGroup = TG_PrePhysics;
-	static FName MeshCollisionProfileName(TEXT("CharacterMesh"));
-	FPPMesh->SetCollisionProfileName(MeshCollisionProfileName);
-	FPPMesh->SetCollisionProfileName(MeshCollisionProfileName);
-	FPPMesh->SetGenerateOverlapEvents(false);
-	FPPMesh->SetCanEverAffectNavigation(false);
-	FPPMesh->bOnlyOwnerSee = true;
+// 	FPPMesh = CreateDefaultSubobject<USkeletalMeshComponent>(FName("FPPMesh"));
+// 	FPPMesh->SetupAttachment(GetRootComponent());
+// 	FPPMesh->AlwaysLoadOnClient = true;
+// 	FPPMesh->AlwaysLoadOnServer = true;
+// 	FPPMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPose;
+// 	FPPMesh->bCastDynamicShadow = true;
+// 	FPPMesh->bAffectDynamicIndirectLighting = true;
+// 	FPPMesh->PrimaryComponentTick.TickGroup = TG_PrePhysics;
+// 	static FName MeshCollisionProfileName(TEXT("CharacterMesh"));
+// 	FPPMesh->SetCollisionProfileName(MeshCollisionProfileName);
+// 	FPPMesh->SetCollisionProfileName(MeshCollisionProfileName);
+// 	FPPMesh->SetGenerateOverlapEvents(false);
+// 	FPPMesh->SetCanEverAffectNavigation(false);
+// 	FPPMesh->bOnlyOwnerSee = true;
 
-	GetMesh()->bOwnerNoSee = true;
+/*	GetMesh()->bOwnerNoSee = true;*/
 
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
@@ -52,7 +52,7 @@ AMPShooterCharacter::AMPShooterCharacter()
 	GetCharacterMovement()->GetNavAgentPropertiesRef().bCanCrouch = true;
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(RootComponent);
+	CameraBoom->SetupAttachment(GetMesh(), "CameraSocket");
 	CameraBoom->TargetArmLength = 0.0f;
 	CameraBoom->SetRelativeLocation(FVector(0.f, 0.f, 80.f));
 	CameraBoom->bUsePawnControlRotation = true;
@@ -445,6 +445,6 @@ void AMPShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 
 	DOREPLIFETIME(AMPShooterCharacter, ActiveWeapon);
 
-	DOREPLIFETIME_CONDITION(AMPShooterCharacter, bIsAiming, COND_SkipOwner);
+	DOREPLIFETIME(AMPShooterCharacter, bIsAiming);
 	DOREPLIFETIME_CONDITION(AMPShooterCharacter, bIsSprinting, COND_SkipOwner);
 }

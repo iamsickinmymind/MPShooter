@@ -8,6 +8,7 @@
 #include "GameFramework/Controller.h"
 #include "MPSPlayerController.h"
 #include "MPShooterCharacter.h"
+#include "MPShooter.h"
 
 AWeapon::AWeapon()
 {
@@ -147,6 +148,54 @@ void AWeapon::StartFire()
 	}
 }
 
+void AWeapon::FireWeapon()
+{
+	const FVector TraceStart = GetTraceLoc();
+	const FVector TraceDir = GetTraceDir();
+	const FVector TraceEnd = TraceStart + (TraceDir * WeaponConfig.Range);
+
+	FHitResult Impact = WeaponTrace(TraceStart, TraceEnd);
+
+	OnFired(TraceStart, TraceEnd, Impact.ImpactPoint);
+}
+
+FHitResult AWeapon::WeaponTrace(const FVector &TraceStart, const FVector &TraceEnd) const
+{
+	FCollisionQueryParams TraceParams(TEXT("WeaponTrace"), true, GetInstigator());
+	TraceParams.bReturnPhysicalMaterial = true;
+
+	FHitResult Hit(ForceInit);
+	GetWorld()->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, COLLISION_WEAPON, TraceParams);
+
+	return Hit;
+}
+
+FVector AWeapon::GetTraceLoc() const
+{
+	if (WeaponMesh)
+	{
+		if (WeaponMesh->DoesSocketExist(WeaponSocketing.DefaultFireSocket))
+		{
+			return WeaponMesh->GetSocketLocation(WeaponSocketing.DefaultFireSocket);
+		}
+	}
+
+	return FVector::ZeroVector;
+}
+
+FVector AWeapon::GetTraceDir() const
+{
+	if (WeaponMesh)
+	{
+		if (WeaponMesh->DoesSocketExist(WeaponSocketing.DefaultFireSocket))
+		{
+			return WeaponMesh->GetSocketRotation(WeaponSocketing.DefaultFireSocket).Vector();
+		}
+	}
+
+	return FVector::ZeroVector;
+}
+
 void AWeapon::StopFire()
 {
 	if (Role < ROLE_Authority)
@@ -237,6 +286,8 @@ void AWeapon::OnEquip(EWeaponType Category)
 	{
 		return;
 	}
+
+	AttachToPawn(CurrentWeaponCategory);
 
 	bPendingEquip = true;
 	DetermineWeaponState();
@@ -358,7 +409,7 @@ void AWeapon::HandleFiring()
 
 		if (WeaponOwner && WeaponOwner->IsLocallyControlled())
 		{
-			//FireWeapon();
+			FireWeapon();
 
 			AmmoInClip = ConsumeAmmo();
 

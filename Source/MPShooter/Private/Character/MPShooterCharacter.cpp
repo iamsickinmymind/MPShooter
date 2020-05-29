@@ -13,27 +13,15 @@
 #include "Weapon/FireWeapon.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
+#include "MPSPlayerController.h"
+#include "MPShooter.h"
 
 AMPShooterCharacter::AMPShooterCharacter()
 {
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(COLLISION_WEAPON, ECR_Ignore);
 
-// 	FPPMesh = CreateDefaultSubobject<USkeletalMeshComponent>(FName("FPPMesh"));
-// 	FPPMesh->SetupAttachment(GetRootComponent());
-// 	FPPMesh->AlwaysLoadOnClient = true;
-// 	FPPMesh->AlwaysLoadOnServer = true;
-// 	FPPMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPose;
-// 	FPPMesh->bCastDynamicShadow = true;
-// 	FPPMesh->bAffectDynamicIndirectLighting = true;
-// 	FPPMesh->PrimaryComponentTick.TickGroup = TG_PrePhysics;
-// 	static FName MeshCollisionProfileName(TEXT("CharacterMesh"));
-// 	FPPMesh->SetCollisionProfileName(MeshCollisionProfileName);
-// 	FPPMesh->SetCollisionProfileName(MeshCollisionProfileName);
-// 	FPPMesh->SetGenerateOverlapEvents(false);
-// 	FPPMesh->SetCanEverAffectNavigation(false);
-// 	FPPMesh->bOnlyOwnerSee = true;
-
-/*	GetMesh()->bOwnerNoSee = true;*/
+	GetMesh()->SetCollisionResponseToChannel(COLLISION_WEAPON, ECR_Block);
 
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
@@ -59,7 +47,7 @@ AMPShooterCharacter::AMPShooterCharacter()
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); 
-	FollowCamera->bUsePawnControlRotation = false;
+	FollowCamera->bUsePawnControlRotation = true;
 
 	DefaultCameraLocation = FollowCamera ? FollowCamera->GetComponentLocation() : FVector(0);
 	DefaultFOV = FollowCamera ? FollowCamera->FieldOfView : 90.0f;
@@ -123,55 +111,36 @@ void AMPShooterCharacter::Tick(float DeltaTime)
 	// - create bool ShouldUpdateCamera() const
 	// - determine if camera should be moved
 	// - execute camera mvoement only if camera should be moved
-	if (HasAuthority()) 
+
+	if (IsLocallyControlled())
 	{
-		float DesiredFOV;
-		if (ActiveWeapon)
-		{
-			DesiredFOV = IsAiming() ? ActiveWeapon->WeaponConfig.DefaultAimFOV : DefaultFOV;
-		}
-		else
-		{
-			DesiredFOV = DefaultFOV;
-		}
-
-		FollowCamera->SetFieldOfView(FMath::FInterpTo(FollowCamera->FieldOfView, DesiredFOV, DeltaTime, 10.f));
-
-		if (ActiveWeapon != nullptr) {
-
-			const FVector ADSLocation = ActiveWeapon->GetCameraAimSocketTransform().GetLocation();
-			DefaultCameraLocation = CameraBoom->GetSocketLocation(USpringArmComponent::SocketName);
-
-			FVector CameraLocation = bIsAiming ? ADSLocation : DefaultCameraLocation;
-
-			const float InterpSpeed = FVector::Dist(ADSLocation, DefaultCameraLocation) / ActiveWeapon->GetCemraAimTransitionSpeed();
-			FollowCamera->SetWorldLocation(FMath::VInterpTo(FollowCamera->GetComponentLocation(), CameraLocation, DeltaTime, InterpSpeed));
-		}
+		SetAiminingCamera(DeltaTime);
 	}
-	if (!HasAuthority())
+}
+
+void AMPShooterCharacter::SetAiminingCamera(float DeltaTime)
+{
+	float DesiredFOV;
+	if (ActiveWeapon)
 	{
-		float DesiredFOV;
-		if (ActiveWeapon)
-		{
-			DesiredFOV = IsAiming() ? ActiveWeapon->WeaponConfig.DefaultAimFOV : DefaultFOV;
-		}
-		else
-		{
-			DesiredFOV = DefaultFOV;
-		}
+		DesiredFOV = IsAiming() ? ActiveWeapon->WeaponConfig.DefaultAimFOV : DefaultFOV;
+	}
+	else
+	{
+		DesiredFOV = DefaultFOV;
+	}
 
-		FollowCamera->SetFieldOfView(FMath::FInterpTo(FollowCamera->FieldOfView, DesiredFOV, DeltaTime, 10.f));
+	FollowCamera->SetFieldOfView(FMath::FInterpTo(FollowCamera->FieldOfView, DesiredFOV, DeltaTime, 10.f));
 
-		if (ActiveWeapon != nullptr) {
+	if (ActiveWeapon != nullptr) {
 
-			const FVector ADSLocation = ActiveWeapon->GetCameraAimSocketTransform().GetLocation();
-			DefaultCameraLocation = CameraBoom->GetSocketLocation(USpringArmComponent::SocketName);
+		const FVector ADSLocation = ActiveWeapon->GetCameraAimSocketTransform().GetLocation();
+		DefaultCameraLocation = CameraBoom->GetSocketLocation(USpringArmComponent::SocketName);
 
-			FVector CameraLocation = bIsAiming ? ADSLocation : DefaultCameraLocation;
+		FVector CameraLocation = bIsAiming ? ADSLocation : DefaultCameraLocation;
 
-			const float InterpSpeed = FVector::Dist(ADSLocation, DefaultCameraLocation) / ActiveWeapon->GetCemraAimTransitionSpeed();
-			FollowCamera->SetWorldLocation(FMath::VInterpTo(FollowCamera->GetComponentLocation(), CameraLocation, DeltaTime, InterpSpeed));
-		}
+		const float InterpSpeed = FVector::Dist(ADSLocation, DefaultCameraLocation) / ActiveWeapon->GetCemraAimTransitionSpeed();
+		FollowCamera->SetWorldLocation(FMath::VInterpTo(FollowCamera->GetComponentLocation(), CameraLocation, DeltaTime, InterpSpeed));
 	}
 }
 
@@ -280,7 +249,7 @@ void AMPShooterCharacter::SetActiveWeapon(AWeapon*NewWeapon, AWeapon* LastWeapon
 	{
 		PreviousCategory = LocalLastWeapon->CurrentWeaponCategory;
 		LocalLastWeapon->Destroy(); // maybe dont destroy and manage to perform some actions?
-		PreviousWeapon->Destroy();
+		//PreviousWeapon->Destroy();
 		bHasPreviousWeapon = true;
 	}
 
@@ -354,7 +323,6 @@ void AMPShooterCharacter::StartReload()
 void AMPShooterCharacter::StartAiming()
 {
 	SetAiming(true);
-	bUseControllerRotationYaw = true;
 	if (!HasAuthority())
 	{
 		ServerStartAiming();
@@ -364,7 +332,6 @@ void AMPShooterCharacter::StartAiming()
 void AMPShooterCharacter::StopAiming()
 {
 	SetAiming(false);
-	bUseControllerRotationYaw = false;
 	if (!HasAuthority())
 	{
 		ServerStopAiming();

@@ -298,6 +298,9 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnAttached();
 
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnFired(const FVector &TraceStart, const FVector &TraceEnd, const FVector &ImpactPoint);
+
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	bool CanReload() const;
 
@@ -347,6 +350,9 @@ public:
 	FORCEINLINE float GetCemraAimTransitionSpeed() const { return WeaponConfig.CameraAimTransitionSpeed; };
 
 	UFUNCTION(BlueprintPure, Category = "Weapon")
+	FORCEINLINE FName GetFiringSocket() const { return WeaponSocketing.DefaultFireSocket; };
+
+	UFUNCTION(BlueprintPure, Category = "Weapon")
 	FName GetCameraAimSocket() const;
 
 	/**Returns transform of the camera socket.
@@ -377,6 +383,13 @@ protected:
 	void StartFire();
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerStartFire();
+
+	void FireWeapon();
+	FHitResult WeaponTrace(const FVector &TraceStart, const FVector &TraceEnd) const;
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	FVector GetTraceLoc() const;
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	FVector GetTraceDir() const;
 
 	void StopFire();
 	UFUNCTION(Server, Reliable, WithValidation)

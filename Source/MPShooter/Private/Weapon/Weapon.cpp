@@ -9,6 +9,7 @@
 #include "MPSPlayerController.h"
 #include "MPShooterCharacter.h"
 #include "MPShooter.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 
 AWeapon::AWeapon()
 {
@@ -156,6 +157,8 @@ void AWeapon::FireWeapon()
 
 	FHitResult Impact = WeaponTrace(TraceStart, TraceEnd);
 
+	ProcessInstantHit(Impact, TraceStart, TraceDir);
+
 	OnFired(TraceStart, TraceEnd, Impact.ImpactPoint);
 }
 
@@ -194,6 +197,107 @@ FVector AWeapon::GetTraceDir() const
 	}
 
 	return FVector::ZeroVector;
+}
+
+void AWeapon::ProcessInstantHit(const FHitResult& Impact, const FVector& Origin, const FVector& ShootDir)
+{
+	if (WeaponOwner && WeaponOwner->IsLocallyControlled() && GetNetMode() == NM_Client)
+	{
+		// If we hit something that is controlled by server or player
+		if (Impact.GetActor() && (Impact.GetActor()->GetRemoteRole() == ROLE_Authority || Impact.GetActor()->GetRemoteRole() == ROLE_SimulatedProxy))
+		{
+			ServerNotifyHit(Impact, ShootDir);
+		}
+		else if (!Impact.GetActor())
+		{
+			if (Impact.bBlockingHit)
+			{
+				ServerNotifyHit(Impact, ShootDir);
+			}
+			else
+			{
+				ServerNotifyMiss(ShootDir);
+			}
+		}
+	}
+
+	// Process a confirmed hit.
+	ProcessInstantHitConfirmed(Impact, Origin, ShootDir);
+}
+
+void AWeapon::ServerNotifyHit_Implementation(const FHitResult Impact, FVector_NetQuantizeNormal ShootDir)
+{
+	UE_LOG(LogTemp, Warning, TEXT("ServerNotifyHit"))
+}
+
+bool AWeapon::ServerNotifyHit_Validate(const FHitResult Impact, FVector_NetQuantizeNormal ShootDir)
+{
+	return true;
+}
+
+void AWeapon::ServerNotifyMiss_Implementation(FVector_NetQuantizeNormal ShootDir)
+{
+	UE_LOG(LogTemp, Warning, TEXT("ServerNotifyMiss"))
+}
+
+bool AWeapon::ServerNotifyMiss_Validate(FVector_NetQuantizeNormal ShootDir)
+{
+	return true;
+}
+
+void AWeapon::ProcessInstantHitConfirmed(const FHitResult& Impact, const FVector& Origin, const FVector& ShootDir)
+{
+	if (ShouldDealDamage(Impact.GetActor()))
+	{
+		DealDamage(Impact, ShootDir);
+	}
+
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		//...
+	}
+}
+
+bool AWeapon::ShouldDealDamage(AActor* TestActor) const
+{
+	// If we are an actor on the server, or the local client has authoritative control over actor, we should register damage.
+	if (TestActor)
+	{
+		if (GetNetMode() != NM_Client ||
+			TestActor->HasAuthority() ||
+			TestActor->GetTearOff())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void AWeapon::DealDamage(const FHitResult& Impact, const FVector& ShootDir)
+{
+	if (!WeaponConfig.DamageType) return;
+
+	float ActualHitDamage = WeaponConfig.BaseDamage;
+
+	UDamageType* DmgType = Cast<UDamageType>(WeaponConfig.DamageType->GetDefaultObject());
+
+	for (auto DamageMultiplier : WeaponConfig.DamageMultiplier)
+	{
+		if (DamageMultiplier.Key == Impact.BoneName)
+		{
+			ActualHitDamage *= DamageMultiplier.Value;
+			break;
+		}
+	}
+
+	FPointDamageEvent PointDmg;
+		PointDmg.DamageTypeClass = WeaponConfig.DamageType;
+		PointDmg.HitInfo = Impact;
+		PointDmg.ShotDirection = ShootDir;
+		PointDmg.Damage = ActualHitDamage;
+
+	Impact.GetActor()->TakeDamage(PointDmg.Damage, PointDmg, WeaponOwner->Controller, this);
 }
 
 void AWeapon::StopFire()

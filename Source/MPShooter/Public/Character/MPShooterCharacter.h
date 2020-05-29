@@ -96,7 +96,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
 
-
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 	TSubclassOf<AFireWeapon>DefaultPrimaryWeapon;
 
@@ -105,9 +104,6 @@ protected:
 
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_Weapon, VisibleAnywhere, BlueprintReadOnly, Category = "Weapons")
 	AWeapon* ActiveWeapon = nullptr;
-
-	UPROPERTY(EditAnywhere)
-	AWeapon* FPPActiveWeapon = nullptr;
 
 	UPROPERTY()
 	AWeapon* PreviousWeapon = nullptr;

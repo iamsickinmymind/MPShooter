@@ -2,14 +2,11 @@
 
 #include "Weapon.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "GameFramework/Character.h"
-
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
-#include "GameFramework/Controller.h"
 #include "MPSPlayerController.h"
 #include "MPShooterCharacter.h"
 #include "MPShooter.h"
-#include "PhysicalMaterials/PhysicalMaterial.h"
 
 AWeapon::AWeapon()
 {
@@ -157,7 +154,7 @@ void AWeapon::FireWeapon()
 
 	FHitResult Impact = WeaponTrace(TraceStart, TraceEnd);
 
-	ProcessInstantHit(Impact, TraceStart, TraceDir);
+	HandleHit(Impact, TraceStart, TraceDir);
 
 	OnFired(TraceStart, TraceEnd, Impact.ImpactPoint);
 }
@@ -165,7 +162,9 @@ void AWeapon::FireWeapon()
 FHitResult AWeapon::WeaponTrace(const FVector &TraceStart, const FVector &TraceEnd) const
 {
 	FCollisionQueryParams TraceParams(TEXT("WeaponTrace"), true, GetInstigator());
-	TraceParams.bReturnPhysicalMaterial = true;
+		TraceParams.bReturnPhysicalMaterial = true;
+		TraceParams.AddIgnoredActor(this);
+		TraceParams.AddIgnoredActor(WeaponOwner);
 
 	FHitResult Hit(ForceInit);
 	GetWorld()->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, COLLISION_WEAPON, TraceParams);
@@ -199,105 +198,61 @@ FVector AWeapon::GetTraceDir() const
 	return FVector::ZeroVector;
 }
 
-void AWeapon::ProcessInstantHit(const FHitResult& Impact, const FVector& Origin, const FVector& ShootDir)
+void AWeapon::HandleHit(const FHitResult& Impact, const FVector& Origin, const FVector& ShootDir)
 {
-	if (WeaponOwner && WeaponOwner->IsLocallyControlled() && GetNetMode() == NM_Client)
+// 	if (WeaponOwner && WeaponOwner->IsLocallyControlled() && GetNetMode() == NM_Client)
+// 	{
+// 		// If we hit something that is controlled by server or player
+// 		if (Impact.GetActor() && (Impact.GetActor()->GetRemoteRole() == ROLE_Authority || Impact.GetActor()->GetRemoteRole() == ROLE_SimulatedProxy))
+// 		{
+// 			ServerNotifyHit(Impact, ShootDir);
+// 		}
+// 		else if (!Impact.GetActor())
+// 		{
+// 			if (Impact.bBlockingHit)
+// 			{
+// 				ServerNotifyHit(Impact, ShootDir);
+// 			}
+// 		}
+// 	}
+
+	if (Impact.GetActor())
 	{
-		// If we hit something that is controlled by server or player
-		if (Impact.GetActor() && (Impact.GetActor()->GetRemoteRole() == ROLE_Authority || Impact.GetActor()->GetRemoteRole() == ROLE_SimulatedProxy))
-		{
-			ServerNotifyHit(Impact, ShootDir);
-		}
-		else if (!Impact.GetActor())
-		{
-			if (Impact.bBlockingHit)
-			{
-				ServerNotifyHit(Impact, ShootDir);
-			}
-			else
-			{
-				ServerNotifyMiss(ShootDir);
-			}
-		}
+		UE_LOG(LogTemp, Warning, TEXT("Hit actor %s"), *Impact.GetActor()->GetName());
 	}
 
-	// Process a confirmed hit.
-	ProcessInstantHitConfirmed(Impact, Origin, ShootDir);
+	ServerHandleHit(Impact, ShootDir);
+
+	if (WeaponOwner && Impact.GetActor())
+	{
+		// HUD - show hit marker
+	}
 }
 
-void AWeapon::ServerNotifyHit_Implementation(const FHitResult Impact, FVector_NetQuantizeNormal ShootDir)
+void AWeapon::ServerHandleHit_Implementation(const FHitResult& Impact, FVector_NetQuantizeNormal ShootDir)
 {
-	UE_LOG(LogTemp, Warning, TEXT("ServerNotifyHit"))
+	if (WeaponOwner)
+	{
+		float ActualHitDamage = WeaponConfig.BaseDamage;
+		for (auto DamageMultiplier : WeaponConfig.DamageMultiplier)
+		{
+			if (DamageMultiplier.Key == Impact.BoneName)
+			{
+				ActualHitDamage *= DamageMultiplier.Value;
+				break;
+			}
+		}
+
+		if (AActor* HitActor = Impact.GetActor())
+		{
+			UGameplayStatics::ApplyPointDamage(HitActor, ActualHitDamage, (Impact.TraceStart - Impact.TraceEnd).GetSafeNormal(), Impact, WeaponOwner->GetController(), this, WeaponConfig.DamageType);
+		}
+	}
 }
 
-bool AWeapon::ServerNotifyHit_Validate(const FHitResult Impact, FVector_NetQuantizeNormal ShootDir)
+bool AWeapon::ServerHandleHit_Validate(const FHitResult& Impact, FVector_NetQuantizeNormal ShootDir)
 {
 	return true;
-}
-
-void AWeapon::ServerNotifyMiss_Implementation(FVector_NetQuantizeNormal ShootDir)
-{
-	UE_LOG(LogTemp, Warning, TEXT("ServerNotifyMiss"))
-}
-
-bool AWeapon::ServerNotifyMiss_Validate(FVector_NetQuantizeNormal ShootDir)
-{
-	return true;
-}
-
-void AWeapon::ProcessInstantHitConfirmed(const FHitResult& Impact, const FVector& Origin, const FVector& ShootDir)
-{
-	if (ShouldDealDamage(Impact.GetActor()))
-	{
-		DealDamage(Impact, ShootDir);
-	}
-
-	if (GetNetMode() != NM_DedicatedServer)
-	{
-		//...
-	}
-}
-
-bool AWeapon::ShouldDealDamage(AActor* TestActor) const
-{
-	// If we are an actor on the server, or the local client has authoritative control over actor, we should register damage.
-	if (TestActor)
-	{
-		if (GetNetMode() != NM_Client ||
-			TestActor->HasAuthority() ||
-			TestActor->GetTearOff())
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void AWeapon::DealDamage(const FHitResult& Impact, const FVector& ShootDir)
-{
-	if (!WeaponConfig.DamageType) return;
-
-	float ActualHitDamage = WeaponConfig.BaseDamage;
-
-	UDamageType* DmgType = Cast<UDamageType>(WeaponConfig.DamageType->GetDefaultObject());
-
-	for (auto DamageMultiplier : WeaponConfig.DamageMultiplier)
-	{
-		if (DamageMultiplier.Key == Impact.BoneName)
-		{
-			ActualHitDamage *= DamageMultiplier.Value;
-			break;
-		}
-	}
-
-	FPointDamageEvent PointDmg;
-		PointDmg.DamageTypeClass = WeaponConfig.DamageType;
-		PointDmg.HitInfo = Impact;
-		PointDmg.ShotDirection = ShootDir;
-		PointDmg.Damage = ActualHitDamage;
-
-	Impact.GetActor()->TakeDamage(PointDmg.Damage, PointDmg, WeaponOwner->Controller, this);
 }
 
 void AWeapon::StopFire()

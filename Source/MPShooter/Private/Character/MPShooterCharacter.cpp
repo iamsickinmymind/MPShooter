@@ -50,6 +50,8 @@ AMPShooterCharacter::AMPShooterCharacter()
 
 	DefaultCameraLocation = FollowCamera ? FollowCamera->GetComponentLocation() : FVector(0);
 	DefaultFOV = FollowCamera ? FollowCamera->FieldOfView : 90.0f;
+
+	HealthComp = CreateDefaultSubobject<UHealthComponent>(FName("HealthComponent"));
 }
 
 void AMPShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -66,8 +68,8 @@ void AMPShooterCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMPShooterCharacter::StopSprint);
 
 
-	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
-	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
+	PlayerInputComponent->BindAxis("Turn", this, &AMPShooterCharacter::Turn);
+	PlayerInputComponent->BindAxis("LookUp", this, &AMPShooterCharacter::LookUp);
 
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AMPShooterCharacter::OnStartFire);
 	PlayerInputComponent->BindAction("Fire", IE_Released, this, &AMPShooterCharacter::OnStopFire);
@@ -77,6 +79,24 @@ void AMPShooterCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 
 	PlayerInputComponent->BindAction("Aim", IE_Pressed, this, &AMPShooterCharacter::StartAiming);
 	PlayerInputComponent->BindAction("AIm", IE_Released, this, &AMPShooterCharacter::StopAiming);
+}
+
+void AMPShooterCharacter::Turn(float Value)
+{
+	if (Value != 0.f && Controller && Controller->IsLocalPlayerController())
+	{
+		APlayerController* const PC = CastChecked<APlayerController>(Controller);
+		PC->AddYawInput(Value);
+	}
+}
+
+void AMPShooterCharacter::LookUp(float Value)
+{
+	if (Value != 0.f && Controller && Controller->IsLocalPlayerController())
+	{
+		APlayerController* const PC = CastChecked<APlayerController>(Controller);
+		PC->AddPitchInput(Value);
+	}
 }
 
 void AMPShooterCharacter::BeginPlay()
@@ -117,6 +137,20 @@ void AMPShooterCharacter::Tick(float DeltaTime)
 	{
 		SetAiminingCamera(DeltaTime);
 	}
+}
+
+float AMPShooterCharacter::TakeDamage(float DamageAmount, struct FDamageEvent const & DamageEvent, class AController * EventInstigator, AActor * DamageCauser)
+{
+	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	UE_LOG(LogTemp, Error, TEXT("CustomTakingDamage"))
+
+	if (AMPSPlayerController* PC = Cast<AMPSPlayerController>(GetController()))
+	{
+		PC->ClientUpdateInGameUI();
+	}
+
+	return DamageAmount;
 }
 
 void AMPShooterCharacter::SetAiminingCamera(float DeltaTime)
@@ -200,11 +234,6 @@ void AMPShooterCharacter::ServerSetSprinting_Implementation(bool NewSprinting)
 }
 
 bool AMPShooterCharacter::ServerSetSprinting_Validate(bool NewSprinting)
-{
-	return true;
-}
-
-bool AMPShooterCharacter::IsAlive() const
 {
 	return true;
 }

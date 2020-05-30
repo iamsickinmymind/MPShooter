@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-
+#include "Components/HealthComponent.h"
 #include "Weapon.h"
 #include "MPShooterCharacter.generated.h"
 
@@ -25,11 +25,17 @@ public:
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	FORCEINLINE AWeapon* GetActiveWeapon() const { return ActiveWeapon; };
 
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	FORCEINLINE	float GetHealth() const { return HealthComp ? HealthComp->GetHealth() : 0.f; };
+
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	FORCEINLINE	float GetMaxHealth() const { return HealthComp ? HealthComp->GetMaxHealth() : 0.f; };
+
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void EquipWeapon(AWeapon* NewWeapon, EWeaponType Category = EWeaponType::EWT_Primary);
 
 	UFUNCTION(BlueprintPure, Category = "Player")
-	bool IsAlive() const;
+	FORCEINLINE	bool IsAlive() const {return HealthComp ? HealthComp->IsAlive() : false;};
 
 	UFUNCTION(BlueprintPure, Category = "Player")
 	bool IsSprinting() const;
@@ -46,10 +52,13 @@ protected:
 
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
+    virtual float TakeDamage(float DamageAmount,struct FDamageEvent const & DamageEvent,class AController * EventInstigator, AActor * DamageCauser) override;
 
 	void SetAiminingCamera(float DeltaTime);
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	void Turn(float Value);
+	void LookUp(float Value);
 	void MoveForward(float Value);
 	void MoveRight(float Value);
 	void StartSprint();
@@ -89,6 +98,9 @@ protected:
 
 protected:
 #pragma region protected_variables
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	class UHealthComponent* HealthComp = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;

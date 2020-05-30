@@ -389,6 +389,7 @@ protected:
 	FVector GetTraceLoc() const;
 	FVector GetTraceDir() const;
 	void HandleHit(const FHitResult& Impact, const FVector& Origin, const FVector& ShootDir);
+	bool CanHit(const FHitResult& Impact);
 
 	UFUNCTION(Reliable, Server, WithValidation)
 	void ServerHandleHit(const FHitResult& Impact, FVector_NetQuantizeNormal ShootDir);

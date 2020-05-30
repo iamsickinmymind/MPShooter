@@ -149,7 +149,16 @@ float AMPShooterCharacter::TakeDamage(float DamageAmount, struct FDamageEvent co
 		{
 			if (HealthComp)
 			{
-				HealthComp->ModifyHealth(-DamageAmount);
+				float DeltaHealth = HealthComp->ModifyHealth(-DamageAmount);
+				if (DeltaHealth > 0)
+				{
+					// OnHit();
+					UE_LOG(LogTemp, Warning, TEXT("Not ready to die"))
+				}
+				else
+				{
+					TryToDie(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+				}
 			}
 		}
 
@@ -160,6 +169,49 @@ float AMPShooterCharacter::TakeDamage(float DamageAmount, struct FDamageEvent co
 	}
 
 	return DamageAmount;
+}
+
+void AMPShooterCharacter::TryToDie(const float DamageAmount, struct FDamageEvent const & DamageEvent, class AController * EventInstigator, AActor * DamageCauser)
+{
+	if (EventInstigator != GetController())
+	{
+		KilledBy(DamageCauser, EventInstigator, DamageEvent);
+	}
+	else
+	{
+		KilledSelf(this, DamageEvent);
+	}
+}
+
+void AMPShooterCharacter::KilledBy(const AActor* DamageCauser, const AController* EventInstigator, struct FDamageEvent const & DamageEvent)
+{
+	if (auto TempKiller = Cast<AMPShooterCharacter>(EventInstigator->GetPawn()))
+	{
+		Killer = TempKiller;
+	}
+	OnRep_Killer();
+}
+
+void AMPShooterCharacter::KilledSelf(const AActor* DamageCauser, struct FDamageEvent const & DamageEvent)
+{
+	OnRep_Killer();
+}
+
+void AMPShooterCharacter::OnRep_Killer()
+{
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	GetMesh()->SetSimulatePhysics(true);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	GetMesh()->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+	GetMovementComponent()->SetIsReplicated(false);
+
+	if (AMPSPlayerController* PC = Cast<AMPSPlayerController>(GetController()))
+	{
+
+		PC->DisableInput(nullptr);
+	}
 }
 
 void AMPShooterCharacter::SetAiminingCamera(float DeltaTime)
@@ -450,7 +502,7 @@ void AMPShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AMPShooterCharacter, ActiveWeapon);
-
-	DOREPLIFETIME(AMPShooterCharacter, bIsAiming);
+	DOREPLIFETIME(AMPShooterCharacter, Killer);
+	DOREPLIFETIME_CONDITION(AMPShooterCharacter, bIsAiming, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AMPShooterCharacter, bIsSprinting, COND_SkipOwner);
 }

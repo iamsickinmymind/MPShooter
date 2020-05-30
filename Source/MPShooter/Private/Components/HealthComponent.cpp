@@ -33,7 +33,7 @@ void UHealthComponent::SetHealth(const float NewHealth)
 	}
 }
 
-void UHealthComponent::ModifyHealth(const float Value)
+float UHealthComponent::ModifyHealth(const float Value)
 {
 	if (GetOwner())
 	{
@@ -47,16 +47,13 @@ void UHealthComponent::ModifyHealth(const float Value)
 			OnRep_Health();
 		}
 	}
+
+	return Health;
 }
 
 void UHealthComponent::BeginPlay()
 {
 	Super::BeginPlay();	
-}
-
-void UHealthComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
 void UHealthComponent::OnRep_Health()

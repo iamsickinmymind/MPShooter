@@ -25,6 +25,9 @@ public:
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	FORCEINLINE AWeapon* GetActiveWeapon() const { return ActiveWeapon; };
 
+	UFUNCTION(BlueprintPure, Category = "Health")
+	FORCEINLINE	AActor* GetKiller() const { return Killer; };
+
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	FORCEINLINE	float GetHealth() const { return HealthComp ? HealthComp->GetHealth() : 0.f; };
 
@@ -53,6 +56,13 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
     virtual float TakeDamage(float DamageAmount,struct FDamageEvent const & DamageEvent,class AController * EventInstigator, AActor * DamageCauser) override;
+	void Die();
+	void TryToDie(const float DamageAmount, struct FDamageEvent const & DamageEvent, class AController * EventInstigator, AActor * DamageCauser);
+	void KilledBy(const AActor* DamageCauser, const AController* EventInstigator, struct FDamageEvent const & DamageEvent);
+	void KilledSelf(const AActor* DamageCauser, struct FDamageEvent const & DamageEvent);
+
+	UFUNCTION()
+	void OnRep_Killer();
 
 	void SetAiminingCamera(float DeltaTime);
 
@@ -145,6 +155,9 @@ private:
 
 	float DefaultFOV;
 	FVector DefaultCameraLocation;
+
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_Killer)
+	AActor* Killer = nullptr;
 #pragma endregion private
 };
 

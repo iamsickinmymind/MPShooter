@@ -213,10 +213,33 @@ void AWeapon::HandleHit(const FHitResult& Impact, const FVector& Origin, const F
 	}
 }
 
+bool AWeapon::CanHit(const FHitResult& Impact)
+{
+	if (WeaponOwner && Impact.GetActor())
+	{
+		AMPShooterCharacter* HitActor = Cast<AMPShooterCharacter>(Impact.GetActor());
+		AMPShooterCharacter* PawnOwner = Cast<AMPShooterCharacter>(WeaponOwner);
+		if (HitActor && PawnOwner)
+		{
+			AMPSPlayerController* HitActorCon = Cast<AMPSPlayerController>(HitActor->GetController());
+			AMPSPlayerController* PawnOwnerCon = Cast<AMPSPlayerController>(PawnOwner->GetController());
+			if (HitActorCon && PawnOwnerCon)
+			{
+				if (HitActorCon->GetTeamID() != PawnOwnerCon->GetTeamID())
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 void AWeapon::ServerHandleHit_Implementation(const FHitResult& Impact, FVector_NetQuantizeNormal ShootDir)
 {
 	if (WeaponOwner)
 	{
+		if (!CanHit(Impact)) return;
 		float ActualHitDamage = WeaponConfig.BaseDamage;
 		for (auto DamageMultiplier : WeaponConfig.DamageMultiplier)
 		{

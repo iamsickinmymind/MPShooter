@@ -29,12 +29,11 @@ public:
 	void SetHealth(const float NewHealth);
 
 	UFUNCTION(BlueprintCallable, Category = "Health")
-	void ModifyHealth(const float Value);
+	float ModifyHealth(const float Value);
 
 protected:
 
 	virtual void BeginPlay() override;
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	UFUNCTION()
 	void OnRep_Health();

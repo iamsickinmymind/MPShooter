@@ -64,6 +64,7 @@ protected:
 	void StartSprint();
 	void StopSprint();
 	void SetSprinting(bool NewSprinting);
+
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerSetSprinting(bool NewSprinting);
 
@@ -87,10 +88,13 @@ protected:
 	void StartAiming();
 	void StopAiming();
 	void SetAiming(const bool NewAiming);
+
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerStartAiming();
+
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerStopAiming();
+
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerSetAiming(const bool NewAiming);
 
@@ -132,8 +136,10 @@ private:
 #pragma region private
 
 	bool bWantsToFire;
+
 	UPROPERTY(Transient, Replicated)
 	bool bIsAiming;
+
 	UPROPERTY(Transient, Replicated)
 	bool bIsSprinting;
 

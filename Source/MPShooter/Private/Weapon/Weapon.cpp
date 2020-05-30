@@ -200,22 +200,6 @@ FVector AWeapon::GetTraceDir() const
 
 void AWeapon::HandleHit(const FHitResult& Impact, const FVector& Origin, const FVector& ShootDir)
 {
-// 	if (WeaponOwner && WeaponOwner->IsLocallyControlled() && GetNetMode() == NM_Client)
-// 	{
-// 		// If we hit something that is controlled by server or player
-// 		if (Impact.GetActor() && (Impact.GetActor()->GetRemoteRole() == ROLE_Authority || Impact.GetActor()->GetRemoteRole() == ROLE_SimulatedProxy))
-// 		{
-// 			ServerNotifyHit(Impact, ShootDir);
-// 		}
-// 		else if (!Impact.GetActor())
-// 		{
-// 			if (Impact.bBlockingHit)
-// 			{
-// 				ServerNotifyHit(Impact, ShootDir);
-// 			}
-// 		}
-// 	}
-
 	if (Impact.GetActor())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Hit actor %s"), *Impact.GetActor()->GetName());
@@ -242,10 +226,20 @@ void AWeapon::ServerHandleHit_Implementation(const FHitResult& Impact, FVector_N
 				break;
 			}
 		}
-
+		///TODO @real burting over time
+		// This is just a placeholder that will be removed and re[;aced with actual burst fire method
+		// Maybe FireWeaponBurst();
+		if (WeaponConfig.WeaponFireMode == EWeaponFireMode::EWM_Burst)
+		{
+			ActualHitDamage *= WeaponAmmoSettings.AmmoPerShot;
+		}
 		if (AActor* HitActor = Impact.GetActor())
 		{
-			UGameplayStatics::ApplyPointDamage(HitActor, ActualHitDamage, (Impact.TraceStart - Impact.TraceEnd).GetSafeNormal(), Impact, WeaponOwner->GetController(), this, WeaponConfig.DamageType);
+			FDamageEvent DamageEvent;
+			DamageEvent.DamageTypeClass = WeaponConfig.DamageType;
+			//UGameplayStatics::ApplyDamage(HitActor, ActualHitDamage, WeaponOwner->GetController(), this, WeaponConfig.DamageType);
+			HitActor->TakeDamage(ActualHitDamage, DamageEvent, WeaponOwner->GetController(), this);
+			//UGameplayStatics::ApplyPointDamage(HitActor, ActualHitDamage, (Impact.TraceStart - Impact.TraceEnd).GetSafeNormal(), Impact, WeaponOwner->GetController(), this, WeaponConfig.DamageType);
 		}
 	}
 }

@@ -143,11 +143,20 @@ float AMPShooterCharacter::TakeDamage(float DamageAmount, struct FDamageEvent co
 {
 	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
-	UE_LOG(LogTemp, Error, TEXT("CustomTakingDamage"))
-
-	if (AMPSPlayerController* PC = Cast<AMPSPlayerController>(GetController()))
+	if (HasAuthority())
 	{
-		PC->ClientUpdateInGameUI();
+		if (EventInstigator && DamageCauser)
+		{
+			if (HealthComp)
+			{
+				HealthComp->ModifyHealth(-DamageAmount);
+			}
+		}
+
+		if (AMPSPlayerController* PC = Cast<AMPSPlayerController>(GetController()))
+		{
+			PC->ClientUpdateInGameUI();
+		}
 	}
 
 	return DamageAmount;

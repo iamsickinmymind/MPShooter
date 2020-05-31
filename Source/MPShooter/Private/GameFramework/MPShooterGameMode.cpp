@@ -11,11 +11,6 @@ AMPShooterGameMode::AMPShooterGameMode()
 	bPauseable = false;
 }
 
-void AMPShooterGameMode::BeginPlay()
-{
-	//...
-}
-
 void AMPShooterGameMode::SetTeamID(AMPSPlayerController* PlayerController)
 {
 	if (!PlayerController)
@@ -23,27 +18,59 @@ void AMPShooterGameMode::SetTeamID(AMPSPlayerController* PlayerController)
 		return;
 	}
 
-	int32 PlayerNum = GetWorld()->GetNumPlayerControllers();
-
-	for (int32 i = 0; i <= PlayerNum; ++i)
+	if (PlayerControllers.Find(PlayerController) > 0)
 	{
-		if (UGameplayStatics::GetPlayerController(GetWorld(), i))
+		return;
+	}
+	
+	PlayerControllers.AddUnique(PlayerController);
+	int32 TeamA = 0;
+	int32 TeamB = 0;
+
+	for (auto Itr : PlayerControllers)
+	{
+		if (AMPSPlayerController* ItrPlayerController = Cast<AMPSPlayerController>(Itr))
 		{
-			if (AMPSPlayerController* PC = Cast<AMPSPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), i)))
+			ETeamID ItrTeamID = ItrPlayerController->GetTeamID();
+			switch (ItrTeamID)
 			{
-				int32 RandomTeam = FMath::RandRange(0, 1);
-				switch (RandomTeam)
-				{
-				case 0:
-					PC->SetTeam(ETeamID::ETI_TeamA);
-					break;
-				case 1:
-					PC->SetTeam(ETeamID::ETI_TeamB);
-					break;
-				default:
-					break;
-				}
+			case ETeamID::ETI_TeamA:
+				TeamA++;
+				break;
+
+			case ETeamID::ETI_TeamB:
+				TeamB++;
+				break;
+
+			default:
+				break;
 			}
+		}
+	}
+
+	if (TeamA > TeamB)
+	{
+		PlayerController->SetTeam(ETeamID::ETI_TeamB);
+	}
+	if (TeamA < TeamB)
+	{
+		PlayerController->SetTeam(ETeamID::ETI_TeamA);
+	}
+	if (TeamA == TeamB)
+	{
+		int32 RandomTeam = FMath::FRandRange(0, 1);
+		switch (RandomTeam)
+		{
+		case 0:
+			PlayerController->SetTeam(ETeamID::ETI_TeamA);
+			break;
+
+		case 1:
+			PlayerController->SetTeam(ETeamID::ETI_TeamB);
+			break;
+
+		default:
+			break;
 		}
 	}
 }

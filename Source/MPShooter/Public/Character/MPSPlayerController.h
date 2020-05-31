@@ -34,7 +34,7 @@ public:
 	void ClientUpdateInGameUI();
 
 	UFUNCTION(BlueprintCallable, Category = "Team")
-	void InitializeTeam(ETeamID& TeamID);
+	void InitializeTeam(ETeamID& InTeamID);
 
 	UFUNCTION(BlueprintPure, Category = "Team")
 	FORCEINLINE ETeamID GetTeamID() const { return TeamID; };
@@ -42,14 +42,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Team")
 	void SetTeam(const ETeamID NewTeamID);
 
-	UFUNCTION()
-	void OnRep_TeamID();
+protected:
 
-	UFUNCTION(Client, Reliable)
-	void ClientSetTeamColour();
+	virtual void BeginPlay() override;
 
 protected:
 	
-	UPROPERTY(ReplicatedUsing = OnRep_TeamID, VisibleAnywhere, BlueprintReadOnly, Category = "Team")
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Team")
 	ETeamID TeamID;
 };

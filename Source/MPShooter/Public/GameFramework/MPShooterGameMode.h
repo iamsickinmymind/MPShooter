@@ -16,10 +16,12 @@ class AMPShooterGameMode : public AGameModeBase
 public:
 	AMPShooterGameMode();
 
-	virtual void BeginPlay() override;
-
 	UFUNCTION(BlueprintCallable, Category = "GameMode")
 	void SetTeamID(AMPSPlayerController* PlayerController);
+
+private:
+
+	TArray<APlayerController*>PlayerControllers;
 };
 
 

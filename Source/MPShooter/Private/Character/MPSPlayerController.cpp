@@ -11,12 +11,22 @@ AMPSPlayerController::AMPSPlayerController()
 	TeamID = ETeamID::ETI_Default;
 }
 
+void AMPSPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (AMPShooterGameMode* GM = Cast<AMPShooterGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		InitializeTeam(TeamID);
+	}
+}
+
 void AMPSPlayerController::ClientUpdateInGameUI_Implementation()
 {
 	OnUpdateInGameUI();
 }
 
-void AMPSPlayerController::InitializeTeam(ETeamID& TeamID)
+void AMPSPlayerController::InitializeTeam(ETeamID& InTeamID)
 {
 	if (AMPShooterGameMode* GM = Cast<AMPShooterGameMode>(GetWorld()->GetAuthGameMode()))
 	{
@@ -29,21 +39,6 @@ void AMPSPlayerController::SetTeam(const ETeamID NewTeamID)
 	if (NewTeamID != TeamID)
 	{
 		TeamID = NewTeamID;
-	}
-}
-
-void AMPSPlayerController::OnRep_TeamID()
-{
-	ClientSetTeamColour();
-}
-
-void AMPSPlayerController::ClientSetTeamColour_Implementation()
-{
-	if (AMPShooterCharacter* ControlledPawn = Cast<AMPShooterCharacter>(GetPawn()))
-	{
-		{
-			ControlledPawn->SetTeamColour();
-		}
 	}
 }
 

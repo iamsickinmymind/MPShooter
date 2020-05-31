@@ -9,10 +9,21 @@
 /**
  * 
  */
+UENUM(BlueprintType)
+enum class ETeamID : uint8
+{
+	ETI_TeamA	UMETA(DisplayName = "A"),
+	ETI_TeamB	UMETA(DisplayName = "B"),
+
+	ETI_Default UMETA(Hidden)
+};
+
 UCLASS()
 class MPSHOOTER_API AMPSPlayerController : public APlayerController
 {
 	GENERATED_BODY()
+
+	AMPSPlayerController();
 
 public:
 
@@ -22,15 +33,23 @@ public:
 	UFUNCTION(BlueprintCallable, Client, Reliable)
 	void ClientUpdateInGameUI();
 
+	UFUNCTION(BlueprintCallable, Category = "Team")
+	void InitializeTeam(ETeamID& TeamID);
+
 	UFUNCTION(BlueprintPure, Category = "Team")
-	FORCEINLINE int32 GetTeamID() const { return TeamID; };
+	FORCEINLINE ETeamID GetTeamID() const { return TeamID; };
 
 	UFUNCTION(BlueprintCallable, Category = "Team")
-	void SetTeam(const int32 NewTeamID);
+	void SetTeam(const ETeamID NewTeamID);
+
+	UFUNCTION()
+	void OnRep_TeamID();
+
+	UFUNCTION(Client, Reliable)
+	void ClientSetTeamColour();
 
 protected:
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Team")
-	int32 TeamID;
 	
+	UPROPERTY(ReplicatedUsing = OnRep_TeamID, VisibleAnywhere, BlueprintReadOnly, Category = "Team")
+	ETeamID TeamID;
 };

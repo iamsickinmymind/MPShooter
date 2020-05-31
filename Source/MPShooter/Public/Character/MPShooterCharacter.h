@@ -48,6 +48,10 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Player")
 	bool CanAim();
+
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
+	void SetTeamColour();
+
 #pragma endregion public
 
 protected:

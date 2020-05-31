@@ -230,6 +230,10 @@ bool AWeapon::CanHit(const FHitResult& Impact)
 					return true;
 				}
 			}
+			else if (!HitActorCon)
+			{
+				return true;
+			}
 		}
 	}
 	return false;

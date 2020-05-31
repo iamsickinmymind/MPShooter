@@ -6,6 +6,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "MPShooterGameMode.generated.h"
 
+enum class ETeamID : uint8;
+
 UCLASS(minimalapi)
 class AMPShooterGameMode : public AGameModeBase
 {
@@ -13,6 +15,11 @@ class AMPShooterGameMode : public AGameModeBase
 
 public:
 	AMPShooterGameMode();
+
+	virtual void BeginPlay() override;
+
+	UFUNCTION(BlueprintCallable, Category = "GameMode")
+	void SetTeamID(AMPSPlayerController* PlayerController);
 };
 
 

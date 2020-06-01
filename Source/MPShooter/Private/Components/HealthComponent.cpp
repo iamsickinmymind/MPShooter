@@ -2,6 +2,8 @@
 
 #include "HealthComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "MPShooterCharacter.h"
+#include "MPSPlayerController.h"
 
 UHealthComponent::UHealthComponent()
 {

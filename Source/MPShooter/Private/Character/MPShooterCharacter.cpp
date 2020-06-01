@@ -104,8 +104,6 @@ void AMPShooterCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	GetWorldTimerManager().ClearTimer(TimerHandle_RespawnHandle);
-
 	if (HasAuthority())
 	{
 		if (DefaultPrimaryWeapon)
@@ -156,7 +154,6 @@ float AMPShooterCharacter::TakeDamage(float DamageAmount, struct FDamageEvent co
 				if (DeltaHealth > 0)
 				{
 					// OnHit();
-					UE_LOG(LogTemp, Warning, TEXT("Not ready to die"))
 				}
 				else
 				{
@@ -213,8 +210,8 @@ void AMPShooterCharacter::OnRep_Killer()
 
 	if (AMPSPlayerController* PC = Cast<AMPSPlayerController>(GetController()))
 	{
-		PC->DisableInput(nullptr);
-		//PC->Respawn();
+		//PC->DisableInput(nullptr);
+		PC->Respawn();
 	}
 
 	if (ActiveWeapon)

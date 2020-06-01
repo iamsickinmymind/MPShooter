@@ -60,8 +60,6 @@ void AMPSPlayerController::Respawn()
 		}
 	}
 
-	ChangeState(NAME_Inactive);
-
 	if (!HasAuthority())
 	{
 		ServerRespawn();
@@ -69,8 +67,14 @@ void AMPSPlayerController::Respawn()
 	else
 	{
 		RespawnDealy += RespawnDealyPenalty;
-		GetWorldTimerManager().SetTimer(TimerHandle_RespawnDelay, this, &AMPSPlayerController::ServerRestartPlayer, RespawnDealy, false);
+		GetWorldTimerManager().SetTimer(TimerHandle_RespawnDelay, this, &AMPSPlayerController::RestartPlayer, RespawnDealy, false);
 	}
+}
+
+void AMPSPlayerController::RestartPlayer()
+{
+	ChangeState(NAME_Inactive);
+	ServerRestartPlayer();
 }
 
 void AMPSPlayerController::ServerRespawn_Implementation()

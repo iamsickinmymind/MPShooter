@@ -53,6 +53,8 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void ServerRespawn();
+	
+	void RestartPlayer();
 
 protected:
 	

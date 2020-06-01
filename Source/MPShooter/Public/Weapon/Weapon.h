@@ -7,6 +7,7 @@
 #include "Weapon.generated.h"
 
 class UAnimMontage;
+class UBoxComponent;
 class UTexture2D;
 
 UENUM(BlueprintType)
@@ -360,7 +361,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	FTransform GetCameraAimSocketTransform() const;
 
-
 #pragma endregion public
 
 protected:
@@ -438,6 +438,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "WeaponMesh")
 	USkeletalMeshComponent* WeaponMesh = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "WeaponCollision")
+	UBoxComponent* BoxComp = nullptr;
 
 	UPROPERTY(VisibleAnywhere)
 	EWeaponState CurrentWeaponState;

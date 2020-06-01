@@ -15,6 +15,7 @@
 #include "GameFramework/Actor.h"
 #include "MPSPlayerController.h"
 #include "MPShooter.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 AMPShooterCharacter::AMPShooterCharacter()
 {
@@ -102,6 +103,8 @@ void AMPShooterCharacter::LookUp(float Value)
 void AMPShooterCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	GetWorldTimerManager().ClearTimer(TimerHandle_RespawnHandle);
 
 	if (HasAuthority())
 	{
@@ -202,6 +205,7 @@ void AMPShooterCharacter::OnRep_Killer()
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	GetMesh()->SetSimulatePhysics(true);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	GetMesh()->SetCollisionResponseToChannel(COLLISION_WEAPON, ECR_Ignore);
 	GetMesh()->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
@@ -209,9 +213,17 @@ void AMPShooterCharacter::OnRep_Killer()
 
 	if (AMPSPlayerController* PC = Cast<AMPSPlayerController>(GetController()))
 	{
-
 		PC->DisableInput(nullptr);
+		//PC->Respawn();
 	}
+
+	if (ActiveWeapon)
+	{
+		ActiveWeapon->OnUnEquip();
+		ActiveWeapon->SetWeaponOwner(nullptr);
+	}
+
+	OnRep_Weapon();
 }
 
 void AMPShooterCharacter::SetAiminingCamera(float DeltaTime)
@@ -316,7 +328,14 @@ bool AMPShooterCharacter::CanAim()
 
 void AMPShooterCharacter::OnRep_Weapon()
 {
-	SetActiveWeapon(ActiveWeapon, PreviousWeapon);
+	if (IsAlive())
+	{
+		SetActiveWeapon(ActiveWeapon, PreviousWeapon);
+	}
+	else
+	{
+		SetActiveWeapon(nullptr, PreviousWeapon);
+	}
 }
 
 void AMPShooterCharacter::SetActiveWeapon(AWeapon*NewWeapon, AWeapon* LastWeapon /*= nullptr*/)

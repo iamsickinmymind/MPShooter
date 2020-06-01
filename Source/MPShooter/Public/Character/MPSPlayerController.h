@@ -42,12 +42,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Team")
 	void SetTeam(const ETeamID NewTeamID);
 
+	UFUNCTION()
+	void Respawn();
+
 protected:
 
 	virtual void BeginPlay() override;
+
+	virtual void SetupInputComponent() override;
+
+	UFUNCTION(Server, Reliable)
+	void ServerRespawn();
 
 protected:
 	
 	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Team")
 	ETeamID TeamID;
+
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Respawn")
+	float RespawnDealy;
+
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Respawn")
+	float RespawnDealyPenalty;
+
+	FTimerHandle TimerHandle_RespawnDelay;
 };

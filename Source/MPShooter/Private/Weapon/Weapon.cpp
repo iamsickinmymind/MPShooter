@@ -7,6 +7,7 @@
 #include "MPSPlayerController.h"
 #include "MPShooterCharacter.h"
 #include "MPShooter.h"
+#include "Components/BoxComponent.h"
 
 AWeapon::AWeapon()
 {
@@ -25,6 +26,16 @@ AWeapon::AWeapon()
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	WeaponMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
 	WeaponMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	SetRootComponent(WeaponMesh);
+
+	BoxComp	= CreateDefaultSubobject<UBoxComponent>(FName("BoxComp"));
+	BoxComp->SetupAttachment(GetRootComponent());
+	BoxComp->SetBoxExtent(FVector(48.f, 32.f, 32.f));
+	BoxComp->SetCanEverAffectNavigation(false);
+	BoxComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	BoxComp->SetCollisionResponseToAllChannels(ECR_Ignore);
+	BoxComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	BoxComp->SetActive(false);
 
 	CurrentWeaponState = EWeaponState::EWS_Idle;
 	CurrentWeaponCategory = EWeaponType::EWT_Primary;
@@ -428,12 +439,24 @@ void AWeapon::RefreshOwnerUI()
 
 void AWeapon::OnUnEquip()
 {
-	ServerOnUnEquip();
+	//ServerOnUnEquip
+	if (!HasAuthority())
+	{
+		ServerOnUnEquip();
+		BoxComp->SetActive(true);
+	}
+	else
+	{
+		BoxComp->SetActive(true);
+		DetachFromPawm();
+		SetWeaponOwner(nullptr);
+	}
 }
 
 void AWeapon::ServerOnUnEquip_Implementation()
 {
-	Destroy();
+	/*Destroy();*/
+	OnUnEquip();
 }
 
 bool AWeapon::ServerOnUnEquip_Validate()

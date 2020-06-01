@@ -162,6 +162,8 @@ private:
 
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_Killer)
 	AActor* Killer = nullptr;
+
+	FTimerHandle TimerHandle_RespawnHandle;
 #pragma endregion private
 };
 

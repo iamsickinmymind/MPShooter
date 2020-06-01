@@ -16,6 +16,11 @@ void AMPSPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	FInputModeGameOnly InputMode;
+	SetInputMode(InputMode);
+
+	bShowMouseCursor = false;
+
 	if (AMPShooterGameMode* GM = Cast<AMPShooterGameMode>(GetWorld()->GetAuthGameMode()))
 	{
 		InitializeTeam(TeamID);

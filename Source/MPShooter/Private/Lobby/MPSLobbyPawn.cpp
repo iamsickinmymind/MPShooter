@@ -17,7 +17,7 @@ AMPSLobbyPawn::AMPSLobbyPawn()
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(FName("SpringArmComp"));
 	SpringArmComp->SetupAttachment(GetRootComponent());
 	SpringArmComp->SetRelativeRotation(FRotator(0.f, -180.f, 0.f));
-	SpringArmComp->TargetArmLength = 600.f;
+	SpringArmComp->TargetArmLength = 400.f;
 
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(FName("CameraComp"));
 	CameraComp->SetupAttachment(SpringArmComp, USpringArmComponent::SocketName);

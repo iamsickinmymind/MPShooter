@@ -17,4 +17,6 @@ class MPSHOOTER_API AMPSLobbyController : public APlayerController
 protected:
 
 	virtual void BeginPlay() override;
+
+	void TryJoinSession();
 };

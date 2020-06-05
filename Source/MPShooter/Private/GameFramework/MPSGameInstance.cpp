@@ -64,22 +64,11 @@ void UMPSGameInstance::CancelSearch()
 
 void UMPSGameInstance::OnSessionCreated(FName SessionName, bool Success)
 {
-	if (!Success) 
-	{
-		if (GetEngine()) GetEngine()->AddOnScreenDebugMessage(0, 5.f, FColor::Red, FString("OnSessionCreated failed"));
-		return;
-	}
-	else
-	{
-		if (GetEngine()) GetEngine()->AddOnScreenDebugMessage(0, 5.f, FColor::Red, FString("OnSessionCreated success"));
-	}
+	if (!Success) return;
 
 	if (GetWorld() != nullptr) 
 	{
-		if (GetWorld()->ServerTravel("/Game/6_Maps/ExampleMap?listen?game=DefaultGM"))
-		{
-			GetEngine()->AddOnScreenDebugMessage(0, 5.f, FColor::Red, FString("OnSessionCreated moved correctly"));
-		}
+		GetWorld()->ServerTravel("/Game/6_Maps/ExampleMap?listen?game=DefaultGM");
 	}
 }
 
@@ -95,17 +84,25 @@ void UMPSGameInstance::OnFindSessionCompleted(bool Success)
 {
 	if (!Success)
 	{
-		if (GetEngine()) GetEngine()->AddOnScreenDebugMessage(0, 5.f, FColor::Red, FString("OnFindSessionCompleted failed"));
+		if (GetEngine()) GetEngine()->AddOnScreenDebugMessage(0, 5.f, FColor::Red, FString("OnFindSessionCompleted failed 1st Step"));
 		return;
 	}
+// 	Success = (SessionSearch.IsValid());
+// 	if (!Success)
+// 	{
+// 		if (GetEngine()) GetEngine()->AddOnScreenDebugMessage(0, 5.f, FColor::Red, FString("OnFindSessionCompleted failed 2nd Step"));
+// 		return;
+// 	}
+// 	if (SessionSearch->SearchResults.Num() <= 0)
+// 	{
+// 		if (GetEngine()) GetEngine()->AddOnScreenDebugMessage(0, 5.f, FColor::Red, FString("OnFindSessionCompleted failed 3rd Step"));
+// 		return;
+// 	}
 
-	if (SessionSearch.IsValid() && SessionSearch->SearchResults.Num() > 0)
+	if (SessionSearch.IsValid())
 	{
 		TargetSessionIndex = FMath::RandRange(0, SessionSearch->SearchResults.Num() - 1);
-	}
-	else
-	{
-		GetEngine()->AddOnScreenDebugMessage(0, 5.f, FColor::Red, FString("OnFindSessionCompleted failed"));
+		JoinServer();
 	}
 }
 
@@ -132,8 +129,8 @@ void UMPSGameInstance::CreateSession()
 			SessionSettings.NumPublicConnections = 4;
 			SessionSettings.bShouldAdvertise = true;
 			SessionSettings.bUsesPresence = true;
+			SessionSettings.bIsLANMatch = IOnlineSubsystem::Get()->GetSubsystemName() == FName("NULL");
 			SessionSettings.Set(NAME_Server, DesiredServerName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
-			SessionSettings.bIsLANMatch ? (IOnlineSubsystem::Get()->GetSubsystemName() == FName("NULL")) : true;
 
 		SessionInterface->CreateSession(0, NAME_GameSession, SessionSettings);
 	}
@@ -155,6 +152,7 @@ void UMPSGameInstance::FindSession()
 
 		if (SessionSearch.IsValid() && SessionInterface.IsValid()) {
 
+			SessionSearch->TimeoutInSeconds = 30.f;
 			SessionSearch->bIsLanQuery = false;
 			SessionSearch->MaxSearchResults = 100;
 			SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);

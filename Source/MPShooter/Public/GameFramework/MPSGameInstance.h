@@ -48,7 +48,7 @@ protected:
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	FString GameLevel;
+	FString GameLevel = "/Game/6_Maps/ExampleMap?listen?game=DefaultGM";
 	FString DesiredServerName;
 	IOnlineSessionPtr SessionInterface;
 	TSharedPtr < FOnlineSessionSearch > SessionSearch;
